@@ -7,7 +7,7 @@ WATCH_DIR="/pool/torrent/watch/"
 WATCH_TICK=1
 WATCH_ECHO_TICK=20
 MAGNET_DIR="/pool/torrent/magnets/"
-MAGNET_BIN="$HOME/scripts/bin-available/magnet2torrent"
+MAGNET_BIN="$(which magnet2torrent)"
 MAGNET_LOG="/tmp/magnet-to-torrent-watcher.log"
 
 #
