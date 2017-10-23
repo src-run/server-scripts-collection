@@ -5,6 +5,7 @@
 #
 WATCH_DIR="/pool/torrent/watch/"
 WATCH_TICK=1
+WATCH_ECHO_TICK=20
 MAGNET_DIR="/pool/torrent/magnets/"
 MAGNET_BIN="$HOME/scripts/bin-available/magnet2torrent"
 MAGNET_LOG="/tmp/magnet-to-torrent-watcher.log"
@@ -24,13 +25,6 @@ function get_magnet_count() {
 }
 
 #
-# perform sleep for tick duration
-#
-function do_sleep() {
-  sleep ${WATCH_TICK}
-}
-
-#
 # display magnet information
 #
 function out_resolve_info() {
@@ -38,27 +32,18 @@ function out_resolve_info() {
   local torrent_out="$(basename ${2})"
   local magnet_file="${3}"
 
-  echo "[RESOLVING \"${magnet_file}\"]"
-  echo "  - Magnet Link : \"${magnet_link}\""
-  echo "  - Output Path : \"${torrent_out}\""
+  printf 'Resolving "%s" to "%s" ' "${magnet_file}" "${torrent_out}"
 }
 
 #
 # display magnet resolution result information
 #
 function out_resolve_done() {
-  local mag2tor_ret=${1}
+  local mag2tor_pid=${1}
   local magnet_file="${2}"
 
-  echo -en "  - Result "
-
-  if [[ ${mag2tor_ret} -eq 0 ]]; then
-    echo "OKAY : \"Renaming magnet file to ${magnet_file}.resolved\""
-    mv "${magnet_file}" "${magnet_file}.resolved"
-  else
-    echo "FAIL : \"Renaming magnet file to ${magnet_file}.errored\""
-    mv "${magnet_file}" "${magnet_file}.errored"
-  fi
+  printf '(spawned as %d)\n' ${mag2tor_pid}
+  mv "${magnet_file}" "${magnet_file}.resolved"
 }
 
 #
@@ -68,9 +53,9 @@ function run_resolve_file() {
   local magnet_link="${1}"
   local torrent_out="${2}"
 
-  ${MAGNET_BIN} -m "${magnet_link}" -o "${torrent_out}" &> ${MAGNET_LOG}
+  ${MAGNET_BIN} -m "${magnet_link}" -o "${torrent_out}" &> ${MAGNET_LOG} &
 
-  return $?
+  echo "$!"
 }
 
 #
@@ -85,8 +70,8 @@ function run_resolve() {
   cd "${WATCH_DIR}"
 
   out_resolve_info "${magnet_link}" "${torrent_out}" "${magnet_file}"
-  run_resolve_file "${magnet_link}" "${torrent_out}"
-  out_resolve_done $? "${magnet_file}"
+  local pid=$(run_resolve_file "${magnet_link}" "${torrent_out}")
+  out_resolve_done ${pid} "${magnet_file}"
 }
 
 #
@@ -99,17 +84,21 @@ function do_magnet_loop() {
 }
 
 #
-# out pause start (to inform the user we are in waiting state)
+# display background state if any spawned processes running
 #
-function out_pause_start() {
-  echo -en "[WAITING FOR INPUTS]\n  -"
-}
+function do_background_state() {
+  local bg_count="$(ps aux | grep "[m]agnet2torrent" | wc -l)"
+  local job_p="jobs"
 
-#
-# output pause steps (to indicate the script is still running)
-#
-function out_pause_continue() {
-  echo -en "-"
+  if [[ "${bg_count}" -eq 1 ]]; then
+    job_p="job"
+  fi
+
+  if [[ "${bg_count}" -eq 0 ]]; then
+    return
+  fi
+
+  printf '(%d background %s)...' "${bg_count}" "${job_p}"
 }
 
 #
@@ -120,17 +109,19 @@ function do_pause_state() {
 
   while [[ $(get_magnet_count) -eq 0 ]]; do
     if [[ ${wait} -eq 0 ]]; then
-      out_pause_start
-    elif [[ ${wait} -eq 30 ]]; then
-      out_pause_continue
+      printf 'Sleeping...'
+      do_background_state
+    elif [[ ${wait} -eq ${WATCH_ECHO_TICK} ]]; then
+      printf '...'
+      do_background_state
       wait=0
     fi
 
-    do_sleep
+    sleep ${WATCH_TICK}
     wait=$(((${wait} + 1)))
   done
 
-  echo -en "\n"
+  printf 'waking (found %d new magnet links)...\n' $(get_magnet_count)
 }
 
 #
@@ -143,8 +134,6 @@ function main() {
     else
       do_pause_state
     fi
-
-    do_sleep
   done
 }
 
