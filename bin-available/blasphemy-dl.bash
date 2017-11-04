@@ -21,6 +21,14 @@ function out_line_l2() {
   printf "${format}\n" $@
 }
 
+function out_line_l2i() {
+  local index="$(printf '%03d' ${1})"
+  local format=" ${index}. ${2}"
+  shift; shift
+
+  printf "${format}\n" $@
+}
+
 function out_confirmation() {
   local format="${1} [y/n]: "
   shift
@@ -66,20 +74,23 @@ function do_downloads() {
   local pass="${2}"
   local save="${3}"
   local file="${4}"
+  local i=1
 
   out_line_l1 'Performing asset download on %d images...' "$(cat "${file}" | wc -l)"
 
   for l in $(cat ${file}); do
-    fetch_link "${l}" "${user}" "${pass}" "${save}"
+    fetch_link ${i} "${l}" "${user}" "${pass}" "${save}"
+    i=$((${i} + 1))
   done
 }
 
 function fetch_link() {
-  local link="${1}"
+  local pos=${1}
+  local link="${2}"
   local base="${link##*/}"
-  local user="${2}"
-  local pass="${3}"
-  local path="${4}"
+  local user="${3}"
+  local pass="${4}"
+  local path="${5}"
   local file="${path}/${base}"
   local pwd="$(pwd)"
   local wgetbin="$(which wget)"
@@ -87,8 +98,7 @@ function fetch_link() {
   ${wgetbin} --quiet --user "${user}" --password "${pass}" -O "${file}" "${link}" &> /dev/null
 
   if [[ $? -eq 0 ]]; then
-    sleep 0.1
-    out_line_l2 '%s [%s]' "$(basename "${file}")" "$(du -h ${file} | cut -f1)"
+    out_line_l2i ${pos} '%s [%sM] (%s)' "$(basename "${file}")" "$(echo "scale=2;$(stat -c%s "${file}")/1000/1000" | bc -l)" "${link}"
   else
     out_error 'Failed to download "%s" asset!' "${link}"
   fi
