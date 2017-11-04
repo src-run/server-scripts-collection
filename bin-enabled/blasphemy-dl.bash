@@ -1,0 +1,1 @@
+../bin-available/blasphemy-dl.bash
