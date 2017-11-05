@@ -1,7 +1,14 @@
 #!/bin/bash
 
 function out_error() {
-  local format="ERROR: ${1}"
+  local format="[ERROR] ${1}"
+  shift
+
+  printf "${format}\n" $@
+}
+
+function out_error_l2() {
+  local format=" • [ERROR] ${1}"
   shift
 
   printf "${format}\n" $@
@@ -23,8 +30,9 @@ function out_line_l2() {
 
 function out_line_l2i() {
   local index="$(printf '%03d' ${1})"
-  local format=" ${index}. ${2}"
-  shift; shift
+  local count="$(printf '%03d' ${2})"
+  local format=" • [${index}/${count}] ${3}"
+  shift; shift; shift
 
   printf "${format}\n" $@
 }
@@ -74,33 +82,40 @@ function do_downloads() {
   local pass="${2}"
   local save="${3}"
   local file="${4}"
-  local i=1
+  local count="$(cat "${file}" | wc -l)"
+  local index=1
 
-  out_line_l1 'Performing asset download on %d images...' "$(cat "${file}" | wc -l)"
+  out_line_l1 'Performing asset download on %d images...' "${size}"
 
-  for l in $(cat ${file}); do
-    fetch_link ${i} "${l}" "${user}" "${pass}" "${save}"
-    i=$((${i} + 1))
+  for link in $(cat ${file}); do
+    fetch_link "${index}" "${count}" "${link}" "${user}" "${pass}" "${save}"
+    index=$((${index} + 1))
   done
 }
 
 function fetch_link() {
-  local pos=${1}
-  local link="${2}"
+  local index=${1}
+  local count=${2}
+  local link="${3}"
   local base="${link##*/}"
-  local user="${3}"
-  local pass="${4}"
-  local path="${5}"
+  local user="${4}"
+  local pass="${5}"
+  local path="${6}"
   local file="${path}/${base}"
   local pwd="$(pwd)"
   local wgetbin="$(which wget)"
 
+  if [[ -f "${file}" ]]; then
+    out_error_l2 'Output file already exists: %s' "${file}"
+    return
+  fi
+
   ${wgetbin} --quiet --user "${user}" --password "${pass}" -O "${file}" "${link}" &> /dev/null
 
   if [[ $? -eq 0 ]]; then
-    out_line_l2i ${pos} '%s [%sM] (%s)' "$(basename "${file}")" "$(echo "scale=2;$(stat -c%s "${file}")/1000/1000" | bc -l)" "${link}"
+    out_line_l2i "${index}" "${count}" 'Saved %s (%sM) for link: %s' "$(basename "${file}")" "$(echo "scale=2;$(stat -c%s "${file}")/1000/1000" | bc -l)" "${link}"
   else
-    out_error 'Failed to download "%s" asset!' "${link}"
+    out_error_l2 'Failed to download "%s" asset!' "${link}"
   fi
 }
 
@@ -114,7 +129,7 @@ function file_cleanup() {
     if [[ $? -eq 0 ]]; then
       out_line_l2 'Removed %s text file...' "${file}"
     else
-      out_error 'Unable to remove %s text file!' "${file}"
+      out_error_l2 'Unable to remove %s text file!' "${file}"
     fi
   else
     out_line_l2 'Keeping %s text file...' "${file}"
