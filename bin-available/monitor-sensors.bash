@@ -88,7 +88,8 @@ done
 #done
 
 function colorSelect() {
-  echo "220,5,140"
+  echo $(top -b -d0.1 -n4| awk '/Cpu/ {i=($8*255)/100; printf "%d,%d,0\n",255-i,i;fflush()}' | tail -n 1)
+#  echo "220,5,140"
 }
 
 while true
