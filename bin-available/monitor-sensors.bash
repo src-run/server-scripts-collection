@@ -72,42 +72,20 @@ do
   esac
 done
 
-#while true; do
-#  for r in $(seq 15 140); do
-#    for b in $(seq 60 140); do
-#      for g in $(seq 15 140); do
-#        clear
-#        sensors
-#        COLOR="$(((255 - ${r}))),$(((255 - ${b}))),${g}"
-#        sudo levctl -c ${COLOR}
-#        echo -en "\n---\n\nnzxt-kraken-color = {\n  ${COLOR}\n}"
-#        sleep ${POLLING_TIME}
-#      done
-#    done
-#  done
-#done
-
 function colorSelect() {
   echo $(top -b -d0.1 -n4| awk '/Cpu/ {i=($8*255)/100; printf "%d,%d,0\n",255-i,i;fflush()}' | tail -n 1)
-#  echo "220,5,140"
 }
 
 while true
 do
   clear
-  sensors
-  echo -en "---\n\nnzxt-kraken-pump = "
+  echo -e "\n--- [coretemp-isa-0000 sensors: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n"; \
+    sensors coretemp-isa-0000 | tail -n6 | head -n 5 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }'; \
+    echo -e "\n--- [nct6791-isa-0290 sensors: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n"; \
+    sensors nct6791-isa-0290 | tail -n14 | head -n11 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }';
+  echo -e "\n--- [nnzxt-kraken-pump: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n";
   COLOR=$(colorSelect)
-#  COLOR=$(coloring)
-  sudo levctl -c ${COLOR}
-  echo -en "\n---\n\nnzxt-kraken-color = {\n  ${COLOR}\n}"
-#  COLOR_OFFSET="$(((${COLOR_OFFSET} + 1)))"
-#  if [[ "${COLOR_OFFSET}" == "255" ]]; then
-#    COLOR_MODE=$((($COLOR_MODE + 1)))
-#    COLOR_OFFSET=0
-#  fi
-#  if [[ "${COLOR_MODE}" == "4" ]]; then
-#    COLOR_MODE=1
-#  fi
+  sudo levctl -c "${COLOR}" | head -n4 | tail -n3 | sed -rn 's/^[ \t]*"([^"]+)": ([^,]+),?/\1\t\2/p' | sed -e's/_/ /g' | sed 's/[^ ]\+/\L\u&/g' | awk -F"\t" '{ printf "%-19s=> %-10s\n", $1, $2 }'
+  printf "Hex Color          => %s\n" "${COLOR}"
   sleep ${POLLING_TIME}
 done
