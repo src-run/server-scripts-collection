@@ -1,5 +1,16 @@
 #!/bin/bash
 
+function get_output_root()
+{
+  local config_path="${HOME}/.torrent-magnets-path"
+
+  if [[ -f "${config_path}" ]]; then
+    cat "${HOME}/.torrent-magnets-path" 2> /dev/null
+  else
+    printf './'
+  fi
+}
+
 function out_error() {
   local message="${1}"
   shift
@@ -13,7 +24,7 @@ function out_usage() {
 
 function main() {
   local magnet_link="${1:-x}"
-  local output_root="${2:-/pool/torrent/magnets/}"
+  local output_root="$(get_output_root)"
 
   if [[ ! -w "${output_root}" ]]; then
     out_error 'Output path "%s" is not writable!' "${output_root}"
@@ -39,4 +50,6 @@ function main() {
   fi
 }
 
-main $@
+for magnet_link in "$@"; do
+  main "${magnet_link}"
+done

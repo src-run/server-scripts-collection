@@ -54,7 +54,7 @@ function mag_file_from_link() {
 
 function mag_write() {
   local magnet="${1}"
-  local magbin="$(which mag)"
+  local magbin="$(which magnet-queue)"
 
   ${magbin} "${magnet}" &> /dev/null
 

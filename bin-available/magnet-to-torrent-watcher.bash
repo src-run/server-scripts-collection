@@ -3,25 +3,51 @@
 #
 # configuration variables
 #
-WATCH_DIR="/pool/torrent/watch/"
 WATCH_TICK=1
 WATCH_ECHO_TICK=20
-MAGNET_DIR="/pool/torrent/magnets/"
-MAGNET_BIN="$(which magnet2torrent)"
-MAGNET_LOG="/tmp/magnet-to-torrent-watcher.log"
+MAGNET_BIN="$(which magnet-to-torrent-writer)"
+MAGNET_LOG="/tmp/magnet-to-torrent-watcher_${RANDOM}.log"
+
+#
+# output torrent watch directory
+#
+function get_output_root()
+{
+  local root="${HOME}/.torrent-watch-path"
+
+  if [[ -f "${root}" ]]; then
+    cat "${root}" 2> /dev/null
+  else
+    printf './'
+  fi
+}
+
+#
+# get the magnet files root
+#
+function get_magnet_root()
+{
+  local root="${HOME}/.torrent-magnets-path"
+
+  if [[ -f "${root}" ]]; then
+    cat "${root}" 2> /dev/null
+  else
+    printf './'
+  fi
+}
 
 #
 # get a list of the magnet files that exist
 #
 function get_magnet_files() {
-  echo $(ls ${MAGNET_DIR}*.magnet 2> /dev/null)
+  echo $(ls $(get_magnet_root)*.magnet 2> /dev/null)
 }
 
 #
 # get a count of the magnet files that exist
 #
 function get_magnet_count() {
-  echo $(ls -l ${MAGNET_DIR}*.magnet 2> /dev/null | wc -l)
+  echo $(ls -l $(get_magnet_root)*.magnet 2> /dev/null | wc -l)
 }
 
 #
@@ -65,9 +91,9 @@ function run_resolve() {
   local verbose="0"
   local magnet_file="${1}"
   local magnet_link="$(cat "${magnet_file}")"
-  local torrent_out="${WATCH_DIR}$(basename ${magnet_file} .magnet).torrent"
+  local torrent_out="$(get_output_root)$(basename ${magnet_file} .magnet).torrent"
 
-  cd "${WATCH_DIR}"
+  cd "$(get_output_root)"
 
   out_resolve_info "${magnet_link}" "${torrent_out}" "${magnet_file}"
   local pid=$(run_resolve_file "${magnet_link}" "${torrent_out}")
