@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 ##
-# This file is part of the `robfrawley/bash-scripts` project.
-#
-# (c) Rob Frawley 2nd <rmf@src.run>
-#
-# For the full copyright and license information, please view the LICENSE.md
-# file that was distributed with this source code.
+## This file is part of the `src-run/user-scripts-server` project.
+##
+## (c) Rob Frawley 2nd <rmf@src.run>
+##
+## For the full copyright and license information, please view the LICENSE.md
+## file that was distributed with this source code.
 ##
 
 isRgbFormat()
@@ -16,7 +16,7 @@ isRgbFormat()
 
 isHexFormat()
 {
-  [[ ${1} =~ ^[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$ ]]; return  $?  
+  [[ ${1} =~ ^[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$ ]]; return  $?
 }
 
 writeRgbAsHex()

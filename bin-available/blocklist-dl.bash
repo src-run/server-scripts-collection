@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
-## This file is part of the `robfrawley/twoface-scripts` project.
+## This file is part of the `src-run/user-scripts-server` project.
 ##
 ## (c) Rob Frawley 2nd <rmf@src.run>
 ##
