@@ -1,3 +1,5 @@
 #!/bin/bash
 
-youtube-dl --xattrs --add-metadata --embed-thumbnail --audio-format best --format best --verbose "${1}"
+for url in "${@}"; do
+  /usr/bin/youtube-dl --xattrs --add-metadata --embed-thumbnail --audio-format best --format best --verbose "${url}"
+done

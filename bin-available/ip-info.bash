@@ -85,7 +85,7 @@ function get_address_local_v6()
 function get_address_local_v4()
 {
     local interface="${1}"
-    local address=$(ip -4 -br addr show ${interface} 2> /dev/null | grep -E -o '[0-9]+\.([0-9]+\.?)+' 2> /dev/null)
+    local address=$(ip -4 -br addr show $interface 2> /dev/null | grep -E -o '(UNKNOWN|UP|DOWN)\s+[0-9]+\.([0-9]+\.?)+' 2> /dev/null | awk '{print $2}' 2> /dev/null)
 
     if [[ ${PIPESTATUS[0]} -eq 0 ]];
     then
@@ -277,7 +277,7 @@ function write_interface_information()
         return
     fi
 
-    if [[ ${ip_scope} == local ]];
+    if [[ "${ip_scope}" == "local" ]];
     then
         write_address_local "${interface}" "${address_l}" "${ip_level}" "${output_level}"
     else
@@ -289,7 +289,7 @@ function main()
 {
     local interfaces=()
     local do_list_interfaces=0
-    local ip_scope=local
+    local ip_scope="local"
     local ip_level=4
     local output_level=1
     local use_cache=1
@@ -362,7 +362,7 @@ function main()
     done
 
     if [[ ${do_list_interfaces} -eq 1 ]]; then
-        for interface in $(ip -br link | grep -E -o '^[a-z0-9]+' | awk '{print $1}')
+        for interface in $(ip -br link | grep -E -o '^[a-z0-9]+\s+(UP|UNKNOWN)' | awk '{print $1}')
         do
             interfaces+=("${interface}")
         done
