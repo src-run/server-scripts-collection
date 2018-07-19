@@ -165,7 +165,7 @@ function write_usage {
 
     write_newline
     write_usage_header 'Usage'
-    write_line '  ./%s ARGUMENTS [ACTION]' "$(get_script_name)"
+    write_line '  ./%s ARGUMENTS [ACTION CONTEXT]' "$(get_script_name)"
 
     write_newline
     write_usage_header 'Actions'
@@ -179,14 +179,35 @@ function write_usage {
         'Output a list of all xinput devices with their respective IDs.'
 
     write_newline
+    write_usage_header 'Contexts'
+    write_usage_action 'k' 'keyboard' \
+        'Display the active (current) state of the internal keyboard.'
+    write_usage_action 't' 'touch-pad' \
+        'Enable (attach) the internal touch pad to the x environment.'
+    write_usage_action 'p' 'track-point' \
+        'Disable (detach) the internal track point from the x environment.'
+
+    write_newline
     write_usage_header 'Arguments'
-    write_usage_arg 's' 'slave-id' 'id' \
+    write_usage_arg 'k' 'keyboard-slave-id' 'id' \
         'Specify the xinput slave keyboard device ID. The auto-detected ID'\
         "of \"$(get_xinput_keyboard_slave_id)\" will be used otherwise."
-    write_usage_arg 'm' 'master-id' 'id' \
+    write_usage_arg 'K' 'keyboard-master-id' 'id' \
         'Specify the xinput master keyboard device ID. The auto-detected ID'\
         "of \"$(get_xinput_keyboard_master_id)\" will be used otherwise."
-    write_usage_arg 't' 'test' '!time' \
+    write_usage_arg 't' 'touch-pad-slave-id' 'id' \
+        'Specify the xinput slave touch pad device ID. The auto-detected ID'\
+        "of \"$(get_xinput_touch_pad_slave_id)\" will be used otherwise."
+    write_usage_arg 'T' 'touch-pad-master-id' 'id' \
+        'Specify the xinput master touch pad device ID. The auto-detected ID'\
+        "of \"$(get_xinput_track_touch_pad_master_id)\" will be used otherwise."
+    write_usage_arg 'p' 'track-point-slave-id' 'id' \
+        'Specify the xinput slave track point device ID. The auto-detected ID'\
+        "of \"$(get_xinput_track_point_slave_id)\" will be used otherwise."
+    write_usage_arg 'P' 'track-point-master-id' 'id' \
+        'Specify the xinput master track point device ID. The auto-detected'\
+        "ID of \"$(get_xinput_track_touch_pad_master_id)\" will be used otherwise."
+    write_usage_arg 'x' 'test' '!time' \
         'Perform the requested changes in test mode where: they are applied,'\
         'we wait for the specified time, and then changes are rolled back.'
     write_usage_arg 'h' 'help' 'null' \
@@ -211,6 +232,27 @@ function get_xinput_device_id {
 #
 # resolve the xinput device id of the keyboard
 #
+function get_xinput_track_point_slave_id {
+    get_xinput_device_id 'TPPS/2 IBM TrackPoint'
+}
+
+#
+# resolve the xinput device id of the keyboard
+#
+function get_xinput_touch_pad_slave_id {
+    get_xinput_device_id 'SynPS/2 Synaptics TouchPad'
+}
+
+#
+# resolve the xinput device id of the keyboard
+#
+function get_xinput_track_touch_pad_master_id {
+    get_xinput_device_id 'Virtual core pointer'
+}
+
+#
+# resolve the xinput device id of the keyboard
+#
 function get_xinput_keyboard_slave_id {
     get_xinput_device_id 'AT Translated Set'
 }
@@ -226,8 +268,9 @@ function get_xinput_keyboard_master_id {
 # do attach action
 #
 function do_action_attach {
-    local device_id_slave="${1}"
-    local device_id_master="${2}"
+    local context="${1}"
+    local device_id_slave="${2}"
+    local device_id_master="${3}"
 
     if [[ -z "${device_id_slave}" ]] || [[ -z "${device_id_master}" ]]; then
         write_critical 'Unresolved device' \
@@ -238,11 +281,12 @@ function do_action_attach {
 
     if [[ $? -ne 0 ]]; then
         write_critical 'Attach failure' \
-            'Failed to attach slave device to master!'
+            "Failed to attach slave device (${context}) to master!"
     fi
 
-    write_line 'Device "%s" has been attached to "%s".' \
+    write_line 'Device "%s" (%s) has been attached to "%s".' \
         "${device_id_slave}" \
+        "${context}" \
         "${device_id_master}"
 
 }
@@ -251,8 +295,9 @@ function do_action_attach {
 # do attach detach
 #
 function do_action_detach {
-    local device_id_slave="${1}"
-    local device_id_master="${2}"
+    local context="${1}"
+    local device_id_slave="${2}"
+    local device_id_master="${3}"
 
     if [[ -z "${device_id_slave}" ]] || [[ -z "${device_id_master}" ]]; then
         write_critical 'Unresolved device' \
@@ -263,11 +308,12 @@ function do_action_detach {
 
     if [[ $? -ne 0 ]]; then
         write_critical 'Detach failure' \
-            'Failed to detach slave device!'
+            "Failed to detach slave device (${context}) from master!"
     fi
 
-    write_line 'Device "%s" has been detached from "%s".' \
+    write_line 'Device "%s" (%s) has been detached from "%s".' \
         "${device_id_slave}" \
+        "${context}" \
         "${device_id_master}"
 }
 
@@ -275,18 +321,34 @@ function do_action_detach {
 # do attach action
 #
 function do_action_status {
-    local device_id_slave="${1}"
-    local device_id_master="${2}"
+    local context="${1}"
+    local device_id_slave="${2}"
+    local device_id_master="${3}"
+    local search
 
-    xinput | grep -E 'AT Translated Set.+floating slave' &> /dev/null
+    case "${context}" in
+        k|keyboard )
+            search='AT Translated Set.+floating slave'
+            ;;
+        t|touch-pad )
+            search='SynPS/2 Synaptics TouchPad.+floating slave'
+            ;;
+        p|track-point )
+            search='TPPS/2 IBM TrackPoint.+floating slave'
+            ;;
+    esac
+
+    xinput | grep -E "${search}" &> /dev/null
 
     if [[ $? -ne 0 ]]; then
-        write_line 'Device "%s" is ATTACHED to "%s".' \
+        write_line 'Device "%s" (%s) is ATTACHED to "%s".' \
             "${device_id_slave}" \
+            "${context}" \
             "${device_id_master}"
     else
-        write_line 'Device "%s" is DETACHED.' \
-            "${device_id_slave}"
+        write_line 'Device "%s" (%s) is DETACHED.' \
+            "${device_id_slave}" \
+            "${context}"
     fi
 }
 
@@ -297,7 +359,7 @@ function do_action_list {
     xinput | \
         grep -o -P '[A-Za-z][a-zA-Z0-9:\./ -]+\s+id=[0-9]+.+' | \
         sed -r -n -e 's/\[(slave|master)[ ]*([a-z]*)[ ]*\(([0-9]*)\)\]/master-id="\3"/p' | \
-        sed -r -n -e 's/id=([0-9]+)/slave-id="\1"/p' | \
+        sed -r -n -e 's/id=([0-9]+)/keyboard-slave-id="\1"/p' | \
         sed -r -n -e 's/^([A-Za-z][a-zA-Z0-9:\./ -]+)/name="\1"/p' | \
         column
 }
@@ -310,7 +372,12 @@ function main {
     local rollback_time=60
     local keyboard_slave_id
     local keyboard_master_id
+    local touch_pad_slave_id
+    local touch_pad_master_id
+    local track_point_slave_id
+    local track_point_master_id
     local action
+    local contexts=()
 
     while [[ $# -gt 0 ]] && [[ ."-${1}" = .--* ]]; do
         opt="${1}"
@@ -320,16 +387,28 @@ function main {
             "--" )
                 break 2
             ;;
-            -s=* | --slave-id=* )
+            -k=* | --keyboard-slave-id=* )
                 keyboard_slave_id="${opt#*=}"
             ;;
-            -m=* | --master-id=* )
+            -K=* | --keyboard-master-id=* )
                 keyboard_master_id="${opt#*=}"
             ;;
-            -t | --test )
+            -t=* | --touch-pad-slave-id=* )
+                touch_pad_slave_id="${opt#*=}"
+            ;;
+            -T=* | --touch-pad-master-id=* )
+                touch_pad_master_id="${opt#*=}"
+            ;;
+            -p=* | --track-point-slave-id=* )
+                track_point_slave_id="${opt#*=}"
+            ;;
+            -P=* | --track-point-master-id=* )
+                track_point_master_id="${opt#*=}"
+            ;;
+            -x | --test )
                 rollback=1
             ;;
-            -t=* | --test=* )
+            -x=* | --test=* )
                 rollback=1
                 rollback_wait="${opt#*=}"
             ;;
@@ -363,6 +442,22 @@ function main {
         keyboard_master_id="$(get_xinput_keyboard_master_id)"
     fi
 
+    if [[ -z "${touch_pad_slave_id}" ]]; then
+        touch_pad_slave_id="$(get_xinput_touch_pad_slave_id)"
+    fi
+
+    if [[ -z "${touch_pad_master_id}" ]]; then
+        touch_pad_master_id="$(get_xinput_track_touch_pad_master_id)"
+    fi
+
+    if [[ -z "${track_point_slave_id}" ]]; then
+        track_point_slave_id="$(get_xinput_track_point_slave_id)"
+    fi
+
+    if [[ -z "${track_point_master_id}" ]]; then
+        track_point_master_id="$(get_xinput_track_touch_pad_master_id)"
+    fi
+
     while [[ $# -gt 0 ]]; do
         if [[ ! -z "${action}" ]]; then
             write_critical 'Too many actions' \
@@ -371,6 +466,14 @@ function main {
                 "${1,,}"
         fi
         action="${1,,}"
+        shift
+        if [[ ! -z "${context}" ]]; then
+            write_critical 'Too many contexts' \
+                'Only one context can be specified (use "%s" or "%s").' \
+                "${context}" \
+                "${1,,}"
+        fi
+        context="${1,,}"
         shift
     done
 
@@ -386,25 +489,64 @@ function main {
             'The testing/rollback functionality has not yet been implemented!'
     fi
 
-    case "${action}" in
-        a|attach )
-            do_action_attach "${keyboard_slave_id}" "${keyboard_master_id}"
-        ;;
-        d|detach )
-            do_action_detach "${keyboard_slave_id}" "${keyboard_master_id}"
-        ;;
-        s|status )
-            do_action_status "${keyboard_slave_id}" "${keyboard_master_id}"
-        ;;
-        l|list )
-            do_action_list
-        ;;
-        * )
-            write_critical 'Invalid action' \
-                'An unknown action was specified "%s"!' \
-                "${action}"
-        ;;
-    esac
+    local device_slave_id
+    local device_master_id
+
+    for c in ${context}; do
+        case "${c}" in
+            k|keyboard )
+                c=keyboard
+                device_slave_id=${keyboard_slave_id}
+                device_master_id=${keyboard_master_id}
+                ;;
+            t|touch-pad )
+                c=touch-pad
+                device_slave_id=${touch_pad_slave_id}
+                device_master_id=${touch_pad_master_id}
+                ;;
+            p|track-point )
+                c=track-point
+                device_slave_id=${track_point_slave_id}
+                device_master_id=${track_point_master_id}
+                ;;
+            * )
+                if [[ ${action} != l ]] && [[ ${action} != list ]]; then
+                    write_critical 'Invalid context' \
+                        'An unknown context was specified "%s"!' \
+                        "${c}"
+                fi
+            ;;
+        esac
+
+        case "${action}" in
+            a|attach )
+                do_action_attach \
+                    "${c}" \
+                    "${device_slave_id}" \
+                    "${device_master_id}"
+            ;;
+            d|detach )
+                do_action_detach \
+                    "${c}" \
+                    "${device_slave_id}" \
+                    "${device_master_id}"
+            ;;
+            s|status )
+                do_action_status \
+                    "${c}" \
+                    "${device_slave_id}" \
+                    "${device_master_id}"
+            ;;
+            l|list )
+                do_action_list
+            ;;
+            * )
+                write_critical 'Invalid action' \
+                    'An unknown action was specified "%s"!' \
+                    "${action}"
+            ;;
+        esac
+    done
 }
 
 #
