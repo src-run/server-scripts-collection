@@ -484,15 +484,16 @@ function main {
         do_exit 255
     fi
 
+    [[ -z "${context}" ]] && context='ktp'
+    [[ "${action}" == 'l' ]] || [[ "${action}" == 'list' ]] && context='k'
+
     if [[ ${rollback} -eq 1 ]]; then
         write_critical 'Unimplemented' \
             'The testing/rollback functionality has not yet been implemented!'
     fi
 
-    local device_slave_id
-    local device_master_id
-
-    for c in ${context}; do
+    for c in $(echo ${context} | sed -e 's/[^a-z-]//g' | sed -e 's/./\0\n/g')\
+    ; do
         case "${c}" in
             k|keyboard )
                 c=keyboard
@@ -510,11 +511,9 @@ function main {
                 device_master_id=${track_point_master_id}
                 ;;
             * )
-                if [[ ${action} != l ]] && [[ ${action} != list ]]; then
-                    write_critical 'Invalid context' \
-                        'An unknown context was specified "%s"!' \
-                        "${c}"
-                fi
+                write_critical 'Invalid context' \
+                    'An unknown context was specified "%s"!' \
+                    "${c}"
             ;;
         esac
 
