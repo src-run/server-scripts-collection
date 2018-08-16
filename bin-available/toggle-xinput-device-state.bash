@@ -379,6 +379,11 @@ function main {
     local action
     local contexts=()
 
+    if [[ ! "$(which xinput)" ]]; then
+      write_critical 'Missing dependency' \
+        'Failed to locate the "xinput" command. Ensure the required X.org packages are installed and try again.'
+    fi
+
     while [[ $# -gt 0 ]] && [[ ."-${1}" = .--* ]]; do
         opt="${1}"
         shift
