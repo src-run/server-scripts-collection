@@ -10,6 +10,25 @@
 ##
 
 #
+# write text (arguments use printf syntax)
+#
+function write_text {
+    printf -- "${@}"
+}
+
+#
+# generate precise time-stamp (as UNIX time with nanoseconds)
+#
+function get_unix_time {
+    write_text '%s' "$(date +%s\.%N)"
+}
+
+#
+# define initialization time (as UNIX time-stamp)
+#
+COMPOSEP_TIME_INIT=$(get_unix_time)
+
+#
 # define general information (name)
 #
 COMPOSEP_INFO_NAME=composep
@@ -65,179 +84,217 @@ COMPOSEP_COPY_NAME='MIT'
 COMPOSEP_COPY_LINK='src-run.mit-license.org'
 
 #
+# define default auto-PHP-version selection file
+#
+COMPOSEP_AUTO_FILE='.php-auto-version'
+
+#
+# verbosity level of this wrapper script (-1=quiet, 0=normal, 1=verbose)
+#
+COMPOSEP_VERBOSITY_SELF=0
+
+#
+# verbosity level of external composer executable (-1=quiet, 0=normal,
+# 1=verbose, 2=profile)
+#
+COMPOSEP_VERBOSITY_EXEC=0
+
+#
+# generate precise time-stamp (as UNIX time with nanoseconds)
+#
+function write_unix_time {
+    write_text '%.03f' "${1:-$(get_unix_time)}"
+}
+
+#
 # resolve the script name
 #
-function get_script_name {
-    basename "${BASH_SOURCE}"
+function write_self_name {
+    write_text '%s' "$(basename "${BASH_SOURCE}")"
 }
 
 #
-# exit script with optional message
+# write one newline or number of newlines specified as only argument
 #
-function do_exit {
-    local exit_code="${1:-255}"
-    local exit_desc="${2:-}"
-
-    if [[ ! -z "${exit_desc}" ]]; then
-        write_line "${exit_desc}"
-    fi
-
-    exit ${exit_code}
+function write_nl {
+    for i in $(seq 1 ${1:-1}); do write_text '\n'; done
 }
 
 #
-# output (write) text using printf notation
+# write text (arguments use similar printf syntax) with color and styling
 #
-function write_text {
-    local format="${1}"
-    shift
-
-    printf "${format}" "${@}"
+function write_text_styled {
+    out_custom \
+        "$(
+            write_text \
+                "${1}" \
+                "${@:3}"
+        )" \
+        "${2:-fg:white}"
 }
 
 #
-# output new line
-#
-function write_newline {
-    local count="${1:-1}"
-
-    for i in $(seq 1 ${count}); do
-        write_text '\n'
-    done
-}
-
-#
-# output (write) line of text using printf notation
+# write line of text (arguments use printf syntax)
 #
 function write_line {
-    local format="${1}"
-    shift
+    write_text "${@}"
+    write_nl
+}
 
-    write_text "${format}" "${@}"
-    write_newline
+#
+# write line of text text (arguments use similar printf syntax) with color and
+# styling
+#
+function write_line_styled {
+    write_text_styled "${@}"
+    write_nl
+}
+
+#
+# sanitize foreground color so it is readable against background color
+#
+function sanitize_fg_color {
+    local fg=${1}
+    local bg=${2}
+
+    if [[ ${fg} == ${bg} ]]; then
+        case "${fg}" in
+            white ) fg=black ;;
+            black ) fg=white ;;
+            *     ) fg=white ;;
+        esac
+    fi
+
+    case "${bg}" in
+        yellow )
+            case "${fg}" in
+                white ) fg=black ;;
+            esac
+            ;;
+    esac
+
+    write_text "${fg}"
 }
 
 #
 # write line prefix details
 #
 function write_line_pref {
-    local type="${1:-INFO}"
+    local type="${1:-info}"
     local char="${2:---}"
-    local char_color_bg="${3:-green}"
-    local type_color_bg="${4:-$char_color_bg}"
-    local char_color_fg="${5:-white}"
-    local type_color_fg="${6:-white}"
+    local char_bg_color="${3:-green}"
+    local type_bg_color="${4:-$char_bg_color}"
+    local char_fg_color="${5:-white}"
+    local type_fg_color="${6:-white}"
+    local style_dark_l_1='fg:black style:bold style:dim'
+    local style_dark_l_2='fg:white style:bold style:dim'
 
-    if [[ ${type_color_fg} == ${type_color_bg} ]]; then
-        case "${type_color_fg}" in
-            white)
-                type_color_fg=black
-                ;;
-            black )
-                type_color_fg=white
-                ;;
-            * )
-                type_color_fg=white
-                ;;
-        esac
-    fi
+    char_fg_color=$(
+        sanitize_fg_color ${char_fg_color} ${char_bg_color}
+    )
 
-    if [[ ${char_color_fg} == ${char_color_bg} ]]; then
-        case "${char_color_fg}" in
-            white)
-                char_color_fg=black
-                ;;
-            black )
-                char_color_fg=white
-                ;;
-            * )
-                char_color_fg=white
-                ;;
-        esac
-    fi
-    case "${type_color_bg}" in
-        yellow )
-            case "${type_color_fg}" in
-                white)
-                    type_color_fg=black
-                    ;;
-            esac
-            ;;
-    esac
+    type_fg_color=$(
+        sanitize_fg_color ${type_fg_color} ${type_bg_color}
+    )
 
-    case "${char_color_bg}" in
-        yellow )
-            case "${char_color_fg}" in
-                white)
-                    char_color_fg=black
-                    ;;
-            esac
-            ;;
-    esac
-
-    out_custom \
+    write_text_styled \
         '(' \
-        'fg:black style:bold style:dim'
-    out_custom \
-        "$(get_script_name)" \
+        "${style_dark_l_1}"
+
+    write_text_styled \
+        "$(write_self_name)" \
         'fg:white'
-    out_custom \
+
+    write_text_styled \
         ')' \
-        'fg:black style:bold style:dim'
-    out_custom \
-        " $(date +%s.%N | grep -oE '[0-9]{7}\.[0-9]{3}') " \
-        'fg:black style:bold style:dim'
+        "${style_dark_l_1}"
 
-    out_custom \
+    write_text_styled \
+        " $(write_unix_time) " \
+        "${style_dark_l_1}"
+
+    write_text_styled \
         " ${char} " \
-        "fg:${char_color_bg} bg:${char_color_fg} style:bold style:reverse"
-    out_custom \
-        " ${type} " \
-        "fg:${type_color_bg} bg:${type_color_fg} style:bold style:reverse style:dim"
+        "fg:${char_bg_color} bg:${char_fg_color} style:bold style:reverse"
 
-    out_custom \
+    write_text_styled \
+        " ${type} " \
+        "fg:${type_bg_color} bg:${type_fg_color} style:reverse style:dim"
+
+    write_text_styled \
         ' --> ' \
-        'fg:white style:bold style:dim'
+        "${style_dark_l_2}"
 }
 
 #
-# output script about information
+# write script about information
 #
 function write_about {
-    local verbose="${1:-false}"
+    local is_verbose="${1:-false}"
     local style_head='fg:white bg:black style:reverse style:bold'
     local style_norm='fg:black bg:white style:reverse style:dim'
     local style_bold='fg:white bg:black style:bold'
-    local out_vers="${COMPOSEP_VERS_MAJOR}.${COMPOSEP_VERS_MINOR}.${COMPOSEP_VERS_PATCH}"
-    local out_auth="${COMPOSEP_AUTH_NAME}"
-    local out_copy="${COMPOSEP_COPY_NAME}"
-    local out_link="${COMPOSEP_INFO_LINK}"
+    local write_vers="${COMPOSEP_VERS_MAJOR}.${COMPOSEP_VERS_MINOR}.${COMPOSEP_VERS_PATCH}"
+    local write_auth="${COMPOSEP_AUTH_NAME}"
+    local write_copy="${COMPOSEP_COPY_NAME}"
+    local write_link="${COMPOSEP_INFO_LINK}"
 
-    [[ -n "${COMPOSEP_VERS_EXTRA}" ]] && out_vers+="-${COMPOSEP_VERS_EXTRA}"
+    [[ -n "${COMPOSEP_VERS_EXTRA}" ]] && write_vers+="-${COMPOSEP_VERS_EXTRA}"
 
-    if [[ ${verbose} == 'true' ]]; then
-        out_vers+=' (semver.org)'
-        out_auth+=" <${COMPOSEP_AUTH_MAIL}> (${COMPOSEP_AUTH_LINK})"
+    if [[ ${is_verbose} == 'true' ]]; then
+        write_vers+=' (semver.org)'
+        write_auth+=" <${COMPOSEP_AUTH_MAIL}> (${COMPOSEP_AUTH_LINK})"
     fi
 
-    write_newline
+    write_nl
 
-    out_custom " ${COMPOSEP_INFO_NAME^^} " "${style_head}"
-    out_custom ' version'                  "${style_norm}"
-    out_custom " ${out_vers}"              "${style_bold}"
-    out_custom ' by'                       "${style_norm}"
-    out_custom " ${out_auth}"              "${style_bold}"
-    out_custom ' under'                    "${style_norm}"
-    out_custom " ${out_copy}"              "${style_bold}"
-    out_custom ' license'                  "${style_norm}"
+    write_text_styled \
+        " ${COMPOSEP_INFO_NAME^^} " \
+        "${style_head}"
 
-    if [[ ${verbose} == 'true' ]]; then
-        out_custom " (${COMPOSEP_COPY_LINK})" "${style_bold}"
-        out_custom ' with hosting on' "${style_norm}"
-        out_custom " ${out_link}"     "${style_bold}"
+    write_text_styled \
+        ' version' \
+        "${style_norm}"
+
+    write_text_styled \
+        " ${write_vers}" \
+        "${style_bold}"
+
+    write_text_styled \
+        ' by' \
+        "${style_norm}"
+
+    write_text_styled \
+        " ${write_auth}" \
+        "${style_bold}"
+
+    write_text_styled \
+        ' under' \
+        "${style_norm}"
+
+    write_text_styled \
+        " ${write_copy}" \
+        "${style_bold}"
+
+    write_text_styled \
+        ' license' \
+        "${style_norm}"
+
+    if [[ ${is_verbose} == 'true' ]]; then
+        write_text_styled \
+            " (${COMPOSEP_COPY_LINK})" \
+            "${style_bold}"
+
+        write_text_styled \
+            ' with hosting on' \
+            "${style_norm}"
+
+        write_text_styled \
+            " ${write_link}" \
+            "${style_bold}"
     fi
 
-    write_newline 2
+    write_nl 2
 }
 
 #
@@ -246,20 +303,28 @@ function write_about {
 function write_line_head {
     local head="${1}"
     local text="${2}"
-    local type="${3:-INFO}"
+    local type="${3:-info}"
     local char="${4:---}"
     local color_pref="${5:-green}"
     local color_head="${6:-green}"
     local color_text="${7:-white}"
 
-    write_line_pref "${type}" "${char}" "${color_pref}"
-    out_custom "${head}:" "fg:${color_head}"
-    out_custom " ${text}"   "fg:${color_text}"
-    write_newline
+    write_line_pref \
+        "${type}" \
+        "${char}" \
+        "${color_pref}"
+
+    write_text_styled \
+        "[${head}]" \
+        "fg:${color_head}"
+
+    write_line_styled \
+        " ${text}" \
+        "fg:${color_text}"
 }
 
 #
-# compile output text from format with sprintf arguments and support for optional
+# compile output text from format with printf arguments and support for optional
 # enumerated variables
 #
 function compile_output_text {
@@ -280,9 +345,9 @@ function compile_output_text {
     done
 
     if [[ ${#text_args[@]} -gt 0 ]]; then
-        text="$(write_text "${form^}" "${text_args[@]}")"
+        text="$(write_text "${form}" "${text_args[@]}")"
     else
-        text="${form^}"
+        text="${form}"
     fi
 
     if [[ ${#text_vars[@]} -gt 0 ]]; then
@@ -300,91 +365,118 @@ function compile_output_text {
     fi
 
     if [[ ${text:$((${#text} - 1)):1} =~ [^\.\?\!] ]]; then
-        text+="."
+        text+=" ..."
     fi
 
     write_text "${text}"
 }
 
 #
-# output informational message to STDOUT
+# write informational message to STDOUT
 #
 function write_info {
-    write_line_head \
-        "${1^}" \
-        "$(compile_output_text "${2}" "${@:3}")" \
-        'INFO' \
-        '--' \
-        'magenta' \
-        'white'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt -1 ]]; then
+        write_line_head \
+            "${1}" \
+            "$(compile_output_text "${2}" "${@:3}")" \
+            'info' \
+            '--' \
+            'blue' \
+            'cyan' \
+            'white style:dim'
+    fi
 }
 
 #
-# output note-type message to STDOUT
+# write note-type message to STDOUT
 #
 function write_note {
-    write_line_head \
-        "${1^}" \
-        "$(compile_output_text "${2}" "${@:3}")" \
-        'INFO' \
-        '--' \
-        'green' \
-        'green'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt 0 ]]; then
+        write_line_head \
+            "${1}" \
+            "$(compile_output_text "${2}" "${@:3}")" \
+            'note' \
+            '--' \
+            'green' \
+            'green' \
+            'white style:dim'
+    fi
 }
 
 #
-# output warning message to STDERR
+# write warning message to STDERR
 #
 function write_warn {
-    >&2 write_line_head \
-        "${1^}" \
-        "$(compile_output_text "${2}" "${@:3}")" \
-        'WARN' \
-        '##' \
-        'yellow' \
-        'yellow'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt 0 ]]; then
+        >&2 write_line_head \
+            "${1}" \
+            "$(compile_output_text "${2}" "${@:3}")" \
+            'warn' \
+            '##' \
+            'yellow' \
+            'yellow'
+    fi
 }
 
 #
-# output failure message to STDERR
+# write failure message to STDERR
 #
 function write_fail {
-    >&2 write_line_head \
-        "${1^}" \
-        "$(compile_output_text "${2}" "${@:3}")" \
-        'FAIL' \
-        '!!' \
-        'red' \
-        'red'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt -1 ]]; then
+        >&2 write_line_head \
+            "${1}" \
+            "$(compile_output_text "${2}" "${@:3}")" \
+            'fail' \
+            '!!' \
+            'red' \
+            'red style:bold' \
+            'red'
+    fi
 }
 
 #
-# output critical failure message to STDERR and exit script
+# write critical failure message to STDERR and exit script
 #
 function write_crit {
-    >&2 write_line_head \
-        "${1^}" \
-        "$(compile_output_text "${2}" "${@:3}")" \
-        'FAIL' \
-        '!!' \
-        'red' \
-        'red'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt -1 ]]; then
+        >&2 write_line_head \
+            "${1}" \
+            "$(compile_output_text "${2}" "${@:3}")" \
+            'crit' \
+            '!!' \
+            'red' \
+            'red style:bold' \
+            'white style:bold'
+    fi
 
-    >&2 write_line_head \
-        'Terminating script execution' \
-        'The script will be immediately halted (with 255 exit status code) due to the previously described critical failure!' \
-        'EXIT' \
-        'XX' \
-        'yellow' \
-        'yellow'
+    if [[ ${COMPOSEP_VERBOSITY_SELF} -gt 0 ]]; then
+        >&2 write_line_head \
+            'terminating command' \
+            "$(compile_output_text 'halting script execution (with 255 exit code) due to the previous critical failure')" \
+            'exit' \
+            'XX' \
+            'yellow' \
+            'yellow'
+    fi
 
-    do_exit 255
+    exit $(get_exit_code_in_arguments "${@:3}")
 }
 
 #
-# locate php executable path by version number
+# locate exit code in arguments or return default code
 #
-function php_ver_which {
+function get_exit_code_in_arguments {
+    local code
+
+    for c in "${@}"; do [[ ${c:0:6} == 'code=' ]] && code=${c:6}; done
+
+    write_text "${code:-255}"
+}
+
+#
+# locate php executable path by ident version number
+#
+function locate_php_by_version_ident {
     local name="${1}"
     local path
 
@@ -397,43 +489,9 @@ function php_ver_which {
 }
 
 #
-# list available php versions and executable paths
+# locate php executable path by major version number
 #
-function php_ver_list {
-    local path
-
-    for v in $(ls -1 /usr/{bin,local/bin}/php* 2> /dev/null | grep -oE '[0-9]+\.[0-9]+$' 2> /dev/null | sort --version-sort 2> /dev/null | uniq 2> /dev/null); do
-        if path="$(php_ver_which "${v}")"; then
-            write_line '%s:%s' "${v}" "${path}"
-        fi
-    done
-}
-
-#
-# list available php major versions and executable paths
-#
-function php_ver_list_majors {
-    local vers=()
-    local path
-    local name
-
-    vers+=($(
-       php_ver_list \
-            | grep -o -E '^[0-9]' 2> /dev/null \
-            | sort --version-sort 2> /dev/null \
-            | uniq 2> /dev/null
-    ))
-
-    for v in "${vers[@]}"; do
-        if name="$(php_ver_find_by_major "${v}")"; then
-            if path="$(php_ver_which "${name}")"; then
-                write_line '%s/%s:%s' "${v}" "${name}" "${path}"
-            fi
-        fi
-    done
-}
-
-function php_ver_find_by_major {
+function locate_php_by_version_major {
     local major=${1}
     local found
 
@@ -450,195 +508,467 @@ function php_ver_find_by_major {
     fi
 }
 
-function write_usage_header {
-    local header="${1}"
+#
+# list available php version idents with their executable paths
+#
+function list_php_version_idents {
+    local path
 
-    out_custom "${header^^}" 'style:bold' && \
-        write_newline
+    for v in $(ls -1 /usr/{bin,local/bin}/php* 2> /dev/null | grep -oE '[0-9]+\.[0-9]+$' 2> /dev/null | sort --version-sort 2> /dev/null | uniq 2> /dev/null); do
+        if path="$(locate_php_by_version_ident "${v}")"; then
+            write_line '%s:%s' "${v}" "${path}"
+        fi
+    done
 }
 
-function write_usage_action_ver {
+#
+# list available php version majors with their executable paths
+#
+function list_php_version_majors {
+    local vers=()
+    local path
+    local name
+
+    vers+=($(
+       list_php_version_idents \
+            | grep -o -E '^[0-9]' 2> /dev/null \
+            | sort --version-sort 2> /dev/null \
+            | uniq 2> /dev/null
+    ))
+
+    for v in "${vers[@]}"; do
+        if name="$(locate_php_by_version_major "${v}")"; then
+            if path="$(locate_php_by_version_ident "${name}")"; then
+                write_line '%s/%s:%s' "${v}" "${name}" "${path}"
+            fi
+        fi
+    done
+}
+
+#
+# write help usage header (with optional note/details)
+#
+function write_usage_header {
+    local head="${1^^}"
+    local note="${2:-}"
+
+    write_text_styled \
+        "${head}" \
+        'style:bold'
+
+    if [[ -n ${note} ]]; then
+        write_text_styled \
+            " (${note,,})" \
+            'style:dim'
+    fi
+
+    write_nl
+}
+
+#
+# write usage info version details
+#
+function write_usage_version {
+    write_text_styled \
+        "${1}" \
+        'style:dim'
+}
+
+#
+# write usage info ident version details
+#
+function write_usage_version_ident {
     local ver_string="${1}"
     local ver_id="${ver_string%%:*}"
 
     write_text '  %-2s | %-3s | %-10s' \
-        $(php_ver_id_short "${ver_id}") \
+        $(version_ident_sm "${ver_id}") \
         ${ver_id} \
-        "$(php_ver_id_long "${ver_id}")"
+        "$(version_ident_lg "${ver_id}")"
 
-    out_custom \
-        "$(php_ver_desc_long "${ver_string#*:}")" \
-        'style:dim'
+    write_usage_version "$(
+        write_package_version_for_ident \
+            "${ver_string#*:}"
+    )"
 
-    write_newline
+    write_nl
 }
 
-function write_usage_action_ver_major {
-    local ver_string="${1}"
-    local ver_string_n1="${ver_string%%:*}"
-    local ver_alias="${ver_string_n1%%/*}"
-    local ver_id="${ver_string_n1#*/}"
+#
+# write usage info alias version details
+#
+function write_usage_version_alias {
+    local ver_input="${1}"
+    local ver_parts="${ver_input%%:*}"
+    local ver_alias="${ver_parts%%/*}"
+    local ver_ident="${ver_parts#*/}"
 
-    write_text '  %-1s ----------> %-7s' \
-        $(php_ver_id_short "${ver_alias}") \
-        "${ver_id}"
+    write_text "$(
+        write_text \
+            '  %-1s ' \
+            "$(version_ident_sm "${ver_alias}")"
+    )"
 
-    out_custom \
-        "$(php_ver_alias_desc_long "${ver_alias}" "${ver_id}" "${ver_string#*:}")" \
-        'style:dim'
+    write_text_styled \
+        '---------->' \
+        'fg:black style:dim style:bold'
 
-    write_newline
+    write_text "$(
+        write_text \
+            ' %-7s' \
+            "${ver_ident}"
+    )"
+
+    write_usage_version "$(
+        write_package_version_for_alias \
+            "${ver_input#*:}"
+    )"
+
+    write_nl
 }
 
-function write_usage_arg {
+function text_remove_padding {
+    if [[ -n ${1} ]]; then
+        sed -E 's/^[ ]+//g' 2> /dev/null <<< "${1}" | sed -E 's/[ ]+$//g' 2> /dev/null
+    fi
+}
+
+function text_remove_padding_stdin {
+    text_remove_padding "${1:-$(</dev/stdin)}"
+}
+
+#
+# write wrapped and left padded lines of text
+#
+function write_wrapped_lines {
+    local text
+    local pad_size="${2:-2}"
+    local pad_text=''
+    local cut_size="${1:-$(tput cols)}"
+    local cut_diff=$((${cut_size} - ${pad_size}))
+    local line_top
+    local line_rem
+
+    for l in "${@:3}"; do text+=" ${l}"; done
+    for i in $(seq 1 ${pad_size}); do pad_text+=' '; done
+
+    if [[ ${cut_size} -gt 120 ]]; then
+        cut_size=120
+        cut_diff=$((${cut_size} - ${pad_size}))
+    fi
+
+    text="$(text_remove_padding "${text}")"
+    line_top="$(fold -s -w${cut_diff} <<< "${text}" 2> /dev/null | head -n1 2> /dev/null | text_remove_padding_stdin)"
+    line_rem="$(text_remove_padding "${text:$((${#line_top} + 1))}")"
+
+    write_line "${line_top}"
+
+    if [[ ${line_rem} != "" ]]; then
+        write_line "$(fold -s -w$((${cut_size} - ${pad_size})) <<< "${line_rem}" 2> /dev/null | sed "s_^_${pad_text}_" 2> /dev/null)"
+    fi
+
+    return
+    write_line "{{REM[%s]}}" "${line_rem}"
+    return
+}
+
+#
+# write usage info argument details
+#
+function write_usage_argument {
+    local arg_more=${1}
+    shift
     local arg_name="${1}"
     shift
     local arg_long="${1}"
     shift
     local arg_type="${1}"
-    local arg_type_optional=0
+    local arg_null=0
     shift
-    local num_desc=1
-    local arg_long_typed="${arg_long}"
+    local arg_text="${arg_long}"
+    local arg_defs
+    local arg_desc
 
     if [[ "${arg_type:0:1}" == "!" ]]; then
-        arg_type_optional=1
+        arg_null=1
         arg_type="${arg_type:1}"
     fi
 
-    if \
-        [[ ! -z "${arg_type}" ]] && \
-        [[ "${arg_type}" != "null" ]]; \
-    then
-        if [[ ${arg_type_optional} -eq 1 ]]; then
-            arg_long_typed="${arg_long}[=${arg_type^^}]"
+    if [[ ! -z "${arg_type}" ]] && [[ "${arg_type}" != "null" ]]; then
+        if [[ ${arg_null} -eq 1 ]]; then
+            arg_text="${arg_long}[=${arg_type^^}]"
         else
-            arg_long_typed="${arg_long}=${arg_type^^}"
+            arg_text="${arg_long}=${arg_type^^}"
         fi
     fi
 
-    write_text "  -${arg_name:0:1} --$(printf '%-16s' "${arg_long_typed}")"
+    if [[ ${arg_name} == null ]]; then
+        write_text \
+            "     --%-16s" \
+            "${arg_text}"
+    else
+        write_text \
+            "  -%-1s --%-16s" \
+            "${arg_name:0:1}" \
+            "${arg_text}"
+    fi
 
     for line in "${@}"; do
-        if [[ ${num_desc} -gt 1 ]]; then
-            printf '                       '
+        if [[ ${line:0:8} == 'default=' ]]; then
+            arg_defs="${line:8}"
+        else
+            arg_desc+=" ${line}"
         fi
-
-        out_custom "${line}" 'style:dim'
-        write_newline
-        num_desc=$((${num_desc} + 1))
     done
+
+    write_line_styled "$(write_wrapped_lines '' 23 "${arg_desc}")" 'style:dim'
+
+    if [[ ${arg_more} == 'true' ]] && [[ -n ${arg_defs} ]]; then
+        write_text '                       '
+        write_line_styled "$(
+            write_wrapped_lines '' 23 "$(
+                write_text \
+                    '(default: "%s" [%s])' \
+                    "${arg_defs#*|}" \
+                    "${arg_defs%%|*}"
+            )"
+        )" 'fg:black style:bold style:dim'
+    fi
 }
 
+#
+# write usage info script description text
+#
 function write_usage_desc {
+    write_line_styled "  $(write_wrapped_lines '' 2 "${@}")" 'style:dim'
+    return
     for line in "${@}"; do
-        out_custom "  ${line}" 'style:dim'
-        write_newline
+        write_line_styled "  ${line}" 'style:dim'
     done
 }
 
-function php_ver_id_short {
+#
+# version string to ident (small/short text version)
+#
+function version_ident_sm {
     local v="${1}"
 
     write_text "$(sed -E 's/[^0-9]//g' <<< "${v}")"
 }
 
-function php_ver_id_long {
+#
+# version string to ident (large/long text version)
+#
+function version_ident_lg {
     local v="${1}"
 
     write_text "php${v}"
 }
 
-function php_ver_desc_long {
-    local p="${1}"
+#
+# system package version information
+#
+function package_version_desc {
+    local which="${1}"
+    local v
+    local b
 
-    write_text 'Located at "%s" (%s)' \
-        "${p}" \
-        "$(
-            "${p}" --version 2> /dev/null \
-                | head -n 1 2> /dev/null \
-                | sed -E 's/^(PHP )([^ ]+)(.+)$/\2/' 2> /dev/null
-        )"
-}
+    if [[ ! -e "${which}" ]]; then
+        return 1
+    fi
 
-function php_ver_alias_desc_long {
-    local alias="${1}"
-    local ident="${2}"
-    local which="${3}"
+    v="$(
+        "${which}" --version 2> /dev/null \
+            | head -n 1 2> /dev/null \
+            | sed -E 's/^(PHP )([^ ]+)(.+)$/\2/' 2> /dev/null
+    )"
 
-    write_text 'Aliased to "%s" (%s)' \
-        "${which}" \
-        "$(
-            "${which}" --version 2> /dev/null \
-                | head -n 1 2> /dev/null \
-                | sed -E 's/^(PHP )([^ ]+)(.+)$/\2/' 2> /dev/null
-        )"
+    b="$(
+        "${which}" --version 2> /dev/null \
+            | head -n 1 2> /dev/null \
+            | grep -oE 'built: [^)]+' 2> /dev/null \
+            | sed -E 's/built: //g' 2> /dev/null
+    )"
+
+    write_text 'pkg: %s' \
+        "${v}"
 }
 
 #
-# output script usage information
+# get installed debian package version info
+#
+function write_package_version {
+    local where="${1^}"
+    local which="${2}"
+    local about
+
+    write_text '%s "%s"' \
+        "${where}" \
+        "${which}"
+
+    if about="$(package_version_desc "${which}")"; then
+        write_text_styled \
+            ' (%s)' \
+            'fg:black style:dim style:bold' \
+            "${about}"
+    fi
+}
+
+#
+# get installed debian package version for passed version ident
+#
+function write_package_version_for_ident {
+    write_package_version 'located at' "${1}"
+}
+
+#
+# get installed debian package version for passed version alias
+#
+function write_package_version_for_alias {
+    write_package_version 'aliased to' "${1}"
+}
+
+#
+# write script usage information
 #
 function write_usage {
-    write_about
+    local more="${1:-false}"
+    local desc=
+
+    desc+='This script acts as a simple wrapper to the normal Composer executable and enabled easily'
+    desc+=' managing systems with multiple versions of PHP installed on system globally side-by-side.'
+
+    if [[ ${more} == 'true' ]]; then
+        desc+=' After the first and only argument of the PHP version to use, all additional arguments are'
+        desc+=' passed directly to the Compoaser executable. The desired PHP version will also be detected'
+        desc+=' by reading in an auto-php-version definition file.'
+    fi
+
+    write_about ${more}
 
     write_usage_header 'Description'
-    write_usage_desc \
-        'This script acts as a simple wrapper to the normal Composer executable and enabled easily' \
-        'managing systems with multiple versions of PHP all installed globally side-by-side. After' \
-        'the first and only argument of the PHP version to use, all additional arguments are passed' \
-        'directly to the Compoaser executable. The desired PHP version will also be detected by' \
-        'reading in a .php-v file containing the version string either in the current directory or' \
-        'in the user home directory.'
+    write_usage_desc "${desc}"
 
-    write_newline
+    write_nl
+
     write_usage_header 'Usage'
-    write_line '  ./%s [PHP_VERSION] [RUNTIME_ARGUMENTS] -- [COMPOSER_ARGUMENTS]' "$(get_script_name)"
+    write_line '  ./%s [PHP_VERSION] [RUNTIME_ARGUMENTS] -- [COMPOSER_ARGUMENTS]' "$(write_self_name)"
 
-    write_newline
+    write_nl
+
     write_usage_header 'Versions'
+    for v in $(list_php_version_idents); do write_usage_version_ident "${v}"; done
+    if [[ ${more} == 'true' ]]; then
+        for v in $(list_php_version_majors); do write_usage_version_alias "${v}"; done
+    fi
 
-    for v in $(php_ver_list); do
-        write_usage_action_ver "${v}"
-    done
+    write_nl
 
-    write_newline
-    write_usage_header 'Aliases'
-
-    for v in $(php_ver_list_majors); do
-        write_usage_action_ver_major "${v}"
-    done
-
-    write_newline
     write_usage_header 'Arguments'
-    write_usage_arg 'a' 'auto-ver' 'file' \
-        'Specify a file path location containing the desired PHP version'\
-        'identifier to use as the runtime for the Composer executable. By'\
-        'default this file is searched for as ".php-v" first within the'\
-        'current working directory followed by the user home directory.'
-    write_usage_arg 'N' 'no-auto-ver' 'null' \
-        'Disable the automatic search for a auto version file as ".php-v"'\
-        'within the current working directory and the user home directory.'
-    write_usage_arg 'h' 'help' 'null' \
-        'Display the help information for this script (what you are reading).'
-    write_usage_arg 'v' 'version' 'null' \
-        'Display the version information for this script.'
-    write_usage_arg 'V' 'version-extra' 'null' \
-        'Display the verbose version information for this script.'
-    write_newline
+    write_usage_argument ${more} 'a' 'auto-file' 'file' \
+        'Assigns the php-auto-version selection file location, a file'\
+        'containing a php version string that is used to select the php'\
+        'runtime version used when calling composer.'\
+        "default=string|${COMPOSEP_AUTO_FILE}"
+    write_usage_argument ${more} 'N' 'no-auto-file' 'null' \
+        'Disables the php-auto-version file search, causing the default'\
+        'auto file, as well as a custom auto file set with "--auto-file",'\
+        'to be ignored.'\
+        'default=bool|false'
+    write_usage_argument ${more} 'c' 'composer' 'FILE' \
+        'Assigns the composer executable path used when calling composer.'\
+        "default=string|$(write_usage_argument_composer_default)"
+    write_usage_argument ${more} 'W' 'verbose-wrapper' 'null' \
+        'Enables verbose output of the wrapper script only.'\
+        'default=bool|false'
+    if [[ ${more} == 'true' ]]; then
+        write_usage_argument ${more} 'C' 'verbose-compose' 'null' \
+            'Enables all output of "-W", plus verbose output of the external'\
+            'composer executable.'\
+            'default=bool|false'
+    fi
+    write_usage_argument ${more} 'P' 'verbose-profile' 'null' \
+        'Enables all output of "-W" and "-C", plus profiling output of the'\
+        'external composer executable.'\
+        'default=bool|false'
+    write_usage_argument ${more} 'q' 'quiet-wrapper' 'null' \
+        'Disables all output of the wrapper script. The status return code'\
+        'can be used to determine the final result.'\
+        'default=bool|false'
+    if [[ ${more} == 'true' ]]; then
+        write_usage_argument ${more} 'Q' 'quiet-compose' 'null' \
+            'Disables all output of the wrapper script and the external compose'\
+            'executable. The status return code can be used to determine the'\
+            'final result.'\
+            'default=bool|false'
+    fi
+    write_usage_argument ${more} 'h' 'help' 'null' \
+        'Display the basic help information, including a description,'\
+        'general usage, available php versions, and available command'\
+        'line arguments.'\
+        'default=bool|false'
+    write_usage_argument ${more} 'H' 'help-extras' 'null' \
+        'Display the verbose help information, including all output of'\
+        'the "--help" flag, plus all the default values for command line'\
+        'arguments and php versions.'\
+        'default=bool|false'
+    write_usage_argument ${more} 'v' 'version' 'null' \
+        'Display the basic version information of this script, including'\
+        'the full version string, author name, and license name.'\
+        'default=bool|false'
+    if [[ ${more} == 'true' ]]; then
+        write_usage_argument ${more} 'V' 'version-verbose' 'null' \
+            'Display the verbose version information of this script, which'\
+            'includes all output from "-v" plus the author email and link,'\
+            'the license link, and the hosting link.'\
+            'default=bool|false'
+    fi
+    write_nl
 }
 
-function check_php_version_input {
+#
+# locate the composer executable path within your PATH environment
+#
+function locate_composer {
+    local path
+
+    if ! path="$(which composer 2> /dev/null)"; then
+        return 1
+    fi
+
+    write_text "${path}"
+}
+
+#
+# locate the composer executable path within your PATH environment or display
+# a simple text error (for use in user-displayed results)
+#
+function write_usage_argument_composer_default {
+    local path
+
+
+    if ! path="$(locate_composer)"; then
+        write_text '(failed to locate locally installed composer path)'
+    else
+        write_text "${path}"
+    fi
+}
+
+#
+# sanitize php version input from user
+#
+function sanitize_php_version {
     local input="${1}"
     local ident
 
     if [[ ${#input} -eq 1 ]]; then
-        if ! ident="$(php_ver_find_by_major ${input})"; then
+        if ! ident="$(locate_php_by_version_major ${input})"; then
             return 1
         fi
     fi
 
-    for p in $(php_ver_list); do
-        if [[ ${input} == "${p%%:*}" ]] || [[ ${input} == $(php_ver_id_short "${p%%:*}") ]] || [[ ${input} == $(php_ver_id_long "${p%%:*}") ]]; then
+    for p in $(list_php_version_idents); do
+        if [[ ${input} == "${p%%:*}" ]] || [[ ${input} == $(version_ident_sm "${p%%:*}") ]] || [[ ${input} == $(version_ident_lg "${p%%:*}") ]]; then
             ident="${p%%:*}"
             break
         fi
@@ -652,17 +982,32 @@ function check_php_version_input {
 }
 
 #
+# shorten file name (when appropriate) for display
+#
+function file_name_shorten {
+    local file="${1}"
+    local work="${PWD}"
+
+    if [[ ${file:0:${#work}} == ${work} ]]; then
+        file=".${file:$((${#work}))}"
+    fi
+
+    write_text "${file}"
+}
+
+#
 # main function
 #
 function main {
-    local code_ret_int
     local php_bin_path
     local php_ver_name
-    local php_ver_file="{${PWD},${HOME}}/.php-v"
+    local php_ver_file_relative="${COMPOSEP_AUTO_FILE}"
     local php_ver_file_disabled=0
     local php_ver_file_contents
-    local composer_arguments
+    local composer_opt=''
     local composer_bin
+    local self_verbose=0
+    local comp_verbose=0
 
     while [[ $# -gt 0 ]]; do
         opt="${1}"
@@ -670,47 +1015,108 @@ function main {
 
         case "${opt}" in
             -- )
-                composer_arguments="${@}"
+                composer_opt="${@}"
                 break 2
             ;;
-            -a=* | --auto-ver=* )
-                php_ver_file="${opt#*=}"
+            -a=* | --auto-file=* )
+                php_ver_file_relative="${opt#*=}"
                 write_note \
-                    'Parsing argument' \
-                    'Assigning the automatic PHP version detection file path (overwriting default behavior) to provided value' \
-                    "\${${php_ver_file}}"
+                    'argument parsing' \
+                    'assigned auto-php-version detection file to provided value' \
+                    "\${${php_ver_file_relative}}"
             ;;
-            -N | --no-auto-ver )
+            -N | --no-auto-file )
                 php_ver_file_disabled=1
                 write_note \
-                    'Toggling feature' \
-                    'Disabling the automatic PHP version detection file search for ".php-v" due to passed argument' \
-                    '${--no-auto-ver}'
+                    'toggling feature' \
+                    'disabled auto-php-version detection file search' \
+                    "\${${COMPOSEP_AUTO_FILE}}"
+            ;;
+            -c=* | --composer=* )
+                if [[ ! -r ${opt#*=} ]] || [[ ! -e ${opt#*=} ]]; then
+                    write_warn \
+                        'argument parsing' \
+                        'failed to assign composer path (non-existent, non-readable, or non-executable file path provided)' \
+                        "\${${opt#*=}}"
+                else
+                    composer_bin="${opt#*=}"
+                    write_note \
+                        'argument parsing' \
+                        'assigned composer path to provided value' \
+                        "\${${composer_bin}}"
+                fi
+            ;;
+            -W | --verbose-wrapper )
+                COMPOSEP_VERBOSITY_SELF=1
+                COMPOSEP_VERBOSITY_EXEC=0
+                write_note \
+                    'toggling feature' \
+                    'enabled verbose output of wrapper script only'
+            ;;
+            -C | --verbose-compose )
+                COMPOSEP_VERBOSITY_SELF=1
+                COMPOSEP_VERBOSITY_EXEC=1
+                write_note \
+                    'toggling feature' \
+                    'enabled verbose output of wrapper script and verbose output of composer'
+            ;;
+            -P | --verbose-profile )
+                COMPOSEP_VERBOSITY_SELF=1
+                COMPOSEP_VERBOSITY_EXEC=2
+                write_note \
+                    'toggling feature' \
+                    'enabled verbose output of wrapper script and verbose/profiler output of composer'
+            ;;
+            -q | --quiet-wrapper )
+                COMPOSEP_VERBOSITY_SELF=-1
+                COMPOSEP_VERBOSITY_EXEC=0
+                write_note \
+                    'toggling feature' \
+                    'disabled all output of wrapper script only'
+            ;;
+            -Q | --quiet-compose )
+                COMPOSEP_VERBOSITY_SELF=-1
+                COMPOSEP_VERBOSITY_EXEC=-1
+                write_note \
+                    'toggling feature' \
+                    'disabled all output of wrapper script and all output of composer'
+            ;;
+            -h | --help )
+                write_usage false
+                exit 0
+            ;;
+            -H | --help-extras )
+                write_usage true
+                exit 0
             ;;
             -v | --version )
                 write_about false
-                exit
+                exit 0
             ;;
-            -V | --version-extra )
+            -V | --version-verbose )
                 write_about true
-                exit
-            ;;
-            -h | --help )
-                write_usage
-                exit
+                exit 0
             ;;
             * )
-                if php_ver_name="$(check_php_version_input "${opt}")"; then
-                    write_note \
-                        'Version selection' \
-                        'Assigning the active PHP runtime version (using the passed explicit version or fuzzy alias argument)' \
-                        "\${${opt} -> ${php_ver_name}}"
+                if php_ver_name="$(sanitize_php_version "${opt}")"; then
+                    if [[ ${opt} == ${php_ver_name} ]]; then
+                        write_info \
+                            'version selection' \
+                            'assigning the active php runtime version (using the passed explicit version or fuzzy alias argument)' \
+                            "\${${php_ver_name}}"
+                    else
+                        write_info \
+                            'version selection' \
+                            'assigning the active PHP runtime version (using the passed explicit version or fuzzy alias argument)' \
+                            "\${${opt} -> ${php_ver_name}}"
+                    fi
                     continue
                 else
                     write_crit \
-                        'Invalid argument' \
-                        'An unsupported command line argument was provided' \
-                        "\${${opt}}"
+                        'invalid argument' \
+                        'encountered an unknown/unsupported command line argument'
+                        "\${${opt}}" \
+                        'code=200'
                 fi
             ;;
         esac
@@ -721,42 +1127,50 @@ function main {
     done
 
     if [[ -z "${php_ver_name}" ]]; then
-        for file in $(ls -1 {${PWD},${HOME}}/.php-v 2> /dev/null | uniq 2> /dev/null); do
+        for file in $(ls -1 {${PWD},${HOME}}/${php_ver_file_relative} 2> /dev/null | uniq 2> /dev/null); do
+            write_line 'FILE[%s]' "${file}"
             if [[ -r "${file}" ]]; then
                 if [[ $(cat "${file}" 2> /dev/null | grep -oE '^.+$' 2> /dev/null | wc -l 2> /dev/null) -eq 0 ]]; then
                     write_warn \
-                        'Invalid version file' \
-                        'Failed to parse the version string within your automatic version detection file (empty contents)' \
+                        'invalid version file' \
+                        'failed to parse the version string within your automatic version detection file (empty contents)' \
                         "\${${file}}"
                     continue
                 fi
 
                 if [[ $(cat "${file}" 2> /dev/null | grep -oE '^.+$' 2> /dev/null | wc -l 2> /dev/null) -ne 1 ]]; then
                     write_warn \
-                        'Invalid version file' \
-                        'Failed to parse the version string within your automatic version detection file (too many lines)' \
+                        'invalid version file' \
+                        'failed to parse the version string within your automatic version detection file (too many lines)' \
                         "\${${file}}"
                     continue
                 fi
 
                 if ! php_ver_file_contents="$(cat "${file}" | grep -oE '^[0-9]+(\.[0-9](\.[0-9])?)?$' 2> /dev/null)"; then
                     write_warn \
-                        'Invalid version file' \
-                        'Failed to parse the version string within your automatic version detection file (invalid contents)' \
+                        'invalid version file' \
+                        'failed to parse the version string within your automatic version detection file (invalid contents)' \
                         "\${${file}}"
                     continue
                 fi
 
-                if php_ver_name="$(check_php_version_input "${php_ver_file_contents}")"; then
-                    write_note \
-                        'Version selection' \
-                        "Assigning the active PHP runtime version (using the version or alias in ${file})" \
-                        "\${${php_ver_file_contents} -> ${php_ver_name}}"
+                if php_ver_name="$(sanitize_php_version "${php_ver_file_contents}")"; then
+                    if [[ ${php_ver_file_contents} == ${php_ver_name} ]]; then
+                        write_info \
+                            'version selection' \
+                            "assigning the active PHP runtime version (using auto selection file \"$(file_name_shorten "${file}")\" for version or alias)" \
+                            "\${${php_ver_name}}"
+                    else
+                        write_info \
+                            'version selection' \
+                            "assigning the active PHP runtime version (using auto selection file \"$(file_name_shorten "${file}")\" for version or alias)" \
+                            "\${${php_ver_file_contents} -> ${php_ver_name}}"
+                    fi
                     break
                 else
                     write_warn \
-                        'Invalid version file' \
-                        'Failed to parse the version string within your automatic version detection file (invalid version)' \
+                        'invalid version file' \
+                        'failed to parse the version string within your automatic version detection file (invalid version)' \
                         "\${${file}}"
                 fi
             fi
@@ -765,48 +1179,79 @@ function main {
 
     if [[ -z "${php_ver_name}" ]]; then
         php_ver_name="$(
-            php_ver_list \
+            list_php_version_idents \
                 | tail -n 1 2> /dev/null \
                 | grep -oE '^[0-9]\.[0-9]' 2> /dev/null
         )"
-        write_note \
-            'Version selection' \
-            'Assigning the active PHP runtime version to the latest installed version (no explicit version was passed as an argument)' \
+        write_info \
+            'version selection' \
+            'assigning the active PHP runtime version to the latest installed version (no explicit version was passed as an argument)' \
             "\${${php_ver_name}}"
     fi
 
-    if ! php_bin_path="$(php_ver_which "${php_ver_name}")"; then
+    if ! php_bin_path="$(locate_php_by_version_ident "${php_ver_name}")"; then
         write_crit \
-            'Version find path' \
-            'Failed to locate the absolute PHP executable path for the runtime version assigned' \
-            "\${${php_ver_name}}"
+            'version find path' \
+            'failed to locate the absolute PHP executable path for the runtime version assigned' \
+            "\${${php_ver_name}}" \
+            'code=201'
     fi
 
-    write_note \
-        'Wrapping external' \
-        'Executing the external Composer binary using the following command' \
-        "\${$(sed -E 's/[ ]$//g' <<< "${php_bin_path} $(which composer) ${composer_arguments}")}"
+    [[ ${COMPOSEP_VERBOSITY_EXEC} -eq -1 ]] && composer_opt+=' --quiet'
+    [[ ${COMPOSEP_VERBOSITY_EXEC} -eq 1 ]]  && composer_opt+=' -vvv'
+    [[ ${COMPOSEP_VERBOSITY_EXEC} -eq 2 ]]  && composer_opt+=' -vvv --profile'
+
+    write_info \
+        'wrapping external' \
+        'running the external composer executable using the selected php runtime and build command argument(s)' \
+        "\${$(sed -E 's/[ ]$//g' <<< "${php_bin_path} $(which composer) ${composer_opt}")}"
 
     if ! composer_bin="$(which composer)"; then
         write_crit \
-            'Wrapping external' \
-            'Failed to locate the absolute Composer executable path!'
+            'wrapping external' \
+            'failed to locate the absolute composer executable path!' \
+            'code=202'
     fi
 
-    "${php_bin_path}" "${composer_bin}" ${composer_arguments}
+    "${php_bin_path}" "${composer_bin}" ${composer_opt}
 
-    code_ret_int=$?
+    write_done_code $?
+    write_done_time
+}
 
-    if [[ ${code_ret_int} -eq 0 ]]; then
-        write_note \
-            'Resulting external' \
-            'The externally executed Composer binary exited with a zero return status code (signally a likely success)'
-    else
-        write_warn \
-            'Resulting external' \
-            'The externally executed Composer binary exited with a non-zero return status code (signally a likely error)' \
-            "\${${code_ret_int}}"
+#
+# write completion time (in seconds with microsecond precision)
+#
+function write_done_time {
+    local time
+
+    time=$(grep -oE '^([0-9])?\.[0-9]{3}' <<< "$(bc <<< "$(get_unix_time) - ${COMPOSEP_TIME_INIT}")")
+
+    [[ ${time:0:1} == '.' ]] && time="0${time}"
+
+    write_info \
+        'completion summary info' \
+        "external command execution and wrapping operations total time from initialization to end" \
+        "\${$(write_unix_time "${time}") seconds}"
+}
+
+#
+# write completion status code (using UNIX return code assumptions)
+#
+function write_done_code {
+    local code=${1}
+    local head='external command result'
+    local type='write_info'
+    local text='running the external Composer executable exited with a zero return code (signaling a likely success)'
+
+    if [[ ${code} -ne 0 ]]; then
+        type='write_fail'
+        text='running the external Composer executable exited with a non-zero return code (signaling a likely error)'
     fi
+
+    ${type} "${head}" "${text}" "\${${code}}"
+
+
 }
 
 #
