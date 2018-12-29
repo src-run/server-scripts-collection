@@ -1128,7 +1128,6 @@ function main {
 
     if [[ -z "${php_ver_name}" ]]; then
         for file in $(ls -1 {${PWD},${HOME}}/${php_ver_file_relative} 2> /dev/null | uniq 2> /dev/null); do
-            write_line 'FILE[%s]' "${file}"
             if [[ -r "${file}" ]]; then
                 if [[ $(cat "${file}" 2> /dev/null | grep -oE '^.+$' 2> /dev/null | wc -l 2> /dev/null) -eq 0 ]]; then
                     write_warn \
