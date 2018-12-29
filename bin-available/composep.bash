@@ -20,7 +20,7 @@ function write_text {
 # generate precise time-stamp (as UNIX time with nanoseconds)
 #
 function get_unix_time {
-    write_text '%s' "$(date +%s\.%N)"
+    write_text "$(date +%s\.%N)"
 }
 
 #
@@ -1222,16 +1222,10 @@ function main {
 # write completion time (in seconds with microsecond precision)
 #
 function write_done_time {
-    local time
-
-    time=$(grep -oE '^([0-9])?\.[0-9]{3}' <<< "$(bc <<< "$(get_unix_time) - ${COMPOSEP_TIME_INIT}")")
-
-    [[ ${time:0:1} == '.' ]] && time="0${time}"
-
     write_info \
         'completion summary info' \
         "external command execution and wrapping operations total time from initialization to end" \
-        "\${$(write_unix_time "${time}") seconds}"
+        "\${$(write_unix_time "$(bc <<< "$(get_unix_time) - ${COMPOSEP_TIME_INIT}")") seconds}"
 }
 
 #
