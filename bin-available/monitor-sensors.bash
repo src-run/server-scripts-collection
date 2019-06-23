@@ -80,12 +80,12 @@ while true
 do
   clear
   echo -e "\n--- [coretemp-isa-0000 sensors: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n"; \
-    sensors coretemp-isa-0000 | tail -n6 | head -n 5 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }'; \
+    sensors coretemp-isa-0000 | tail -n11 | head -n 10 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }'; \
     echo -e "\n--- [nct6791-isa-0290 sensors: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n"; \
-    sensors nct6791-isa-0290 | tail -n14 | head -n11 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }';
-  echo -e "\n--- [nzxt-kraken-pump: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n";
+    sensors nct6791-isa-0290 | tail -n30 | head -n28 | sed -rn 's/^([^:]+):\s+([^(]+)\s+\(([^)]+)\).*$/\1\t\2\t\3/p' | sed -e's/  */ /g' | awk -F"\t" '{ printf "%-19s=> %-10s(%s)\n", $1, $2, $3 }';
+#  echo -e "\n--- [nzxt-kraken-pump: $(date +"%Y-%m-%d@%H:%M:%S.%N")]\n";
   COLOR=$(colorSelect)
-  sudo levctl -c "${COLOR}" | head -n4 | tail -n3 | sed -rn 's/^[ \t]*"([^"]+)": ([^,]+),?/\1\t\2/p' | sed -e's/_/ /g' | sed 's/[^ ]\+/\L\u&/g' | awk -F"\t" '{ printf "%-19s=> %-10s\n", $1, $2 }'
-  printf "Hex Color          => %s\n" "${COLOR}"
+#  sudo levctl -c "${COLOR}" | head -n4 | tail -n3 | sed -rn 's/^[ \t]*"([^"]+)": ([^,]+),?/\1\t\2/p' | sed -e's/_/ /g' | sed 's/[^ ]\+/\L\u&/g' | awk -F"\t" '{ printf "%-19s=> %-10s\n", $1, $2 }'
+#  printf "Hex Color          => %s\n" "${COLOR}"
   sleep ${POLLING_TIME}
 done
