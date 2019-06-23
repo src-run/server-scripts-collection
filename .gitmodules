@@ -1,6 +1,6 @@
 [submodule "lib/bright-library"]
 	path = lib/bright-library
-	url = git@github.com:src-run/bright-library.git
+	url = https://github.com/src-run/bash-bright-library.git
 [submodule "lib/krakenx"]
 	path = lib/krakenx
 	url = https://github.com/KsenijaS/krakenx.git
