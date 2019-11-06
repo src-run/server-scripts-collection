@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 ##
 ## This file is part of the `src-run/user-scripts-server` project.
@@ -9,24 +9,24 @@
 ## file that was distributed with this source code.
 ##
 
-isRgbFormat()
+function isRgbFormat()
 {
   [[ ${1} =~ ^((2[0-4][0-9]|25[0-5]|[01]?[0-9]?[0-9]),?\s?){3}$ ]]; return $?
 }
 
-isHexFormat()
+function isHexFormat()
 {
   [[ ${1} =~ ^[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$ ]]; return  $?
 }
 
-writeRgbAsHex()
+function writeRgbAsHex()
 {
   local rgb=($(echo ${1} | tr "," "\n"))
 
   printf "%02X%02X%02X\n" ${rgb[@]}
 }
 
-writeHexAsRgb()
+function writeHexAsRgb()
 {
   local h=${1}
 
@@ -37,7 +37,7 @@ writeHexAsRgb()
   printf "%d,%d,%d\n" 0x${h:0:2} 0x${h:2:2} 0x${h:4:2}
 }
 
-sanitizeFormat()
+function sanitizeFormat()
 {
   local f="${1}"
   local v=(${@})
@@ -53,7 +53,7 @@ sanitizeFormat()
   fi
 }
 
-main() {
+function main() {
   local f=$(sanitizeFormat ${@})
 
   if isHexFormat ${f}; then
