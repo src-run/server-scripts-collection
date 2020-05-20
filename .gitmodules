@@ -7,3 +7,6 @@
 [submodule "lib/bright-library"]
 	path = lib/bright-library
 	url = https://github.com/src-run/bash-bright-library.git
+[submodule "lib/raspberry-scripts-bash"]
+	path = lib/raspberry-scripts-bash
+	url = git@github.com:robfrawley/raspberry-scripts-bash.git
