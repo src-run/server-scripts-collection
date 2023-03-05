@@ -15,11 +15,6 @@
 IP_INFO_OUTPUT_ERROR_SUPPRESS=0
 
 #
-# count of prior errors
-#
-IP_INFO_THROWN_ERROR_NUMBERED=0
-
-#
 # resolve the script name
 #
 function get_script_name()
@@ -42,8 +37,6 @@ function write_error()
 {
     local message="${1}"
     local do_exit="${2:--1}"
-
-    IP_INFO_THROWN_ERROR_NUMBERED="$((IP_INFO_THROWN_ERROR_NUMBERED + 1))"
 
     if [[ ${IP_INFO_OUTPUT_ERROR_SUPPRESS} -ne 1 ]]; then
         printf '[ERROR] %s\n' "${message}" >&2
@@ -389,4 +382,3 @@ function main()
 }
 
 main "$@"
-exit "${IP_INFO_THROWN_ERROR_NUMBERED}"
