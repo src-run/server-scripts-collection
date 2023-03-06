@@ -9,5 +9,5 @@
 ## file that was distributed with this source code.
 ##
 
-bash $(dirname "$(readlink -m "${0}")")/ip-info.bash -i=tun0 -r | tr -d '\n'
+bash $(dirname "$(readlink -m "${0}")")/ip-info.bash -i=tun0 -m -q -r | tr -d '\n'
 

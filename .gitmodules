@@ -4,3 +4,9 @@
 [submodule "lib/krakenx"]
 	path = lib/krakenx
 	url = https://github.com/KsenijaS/krakenx.git
+[submodule "lib/rebash"]
+	path = lib/rebash
+	url = https://github.com/jandob/rebash.git
+[submodule "lib/bashlink"]
+	path = lib/bashlink
+	url = https://github.com/thaibault/bashlink.git

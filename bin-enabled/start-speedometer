@@ -1,0 +1,8 @@
+#!/bin/bash
+
+SCRIPT_WAIT="${1:-180}"
+
+printf 'Waiting %d seconds to start...\n' "${SCRIPT_WAIT}"
+sleep "${SCRIPT_WAIT}"
+
+speedometer -k 16 -rx tun0 -tx tun0 -i 0.25

@@ -1,0 +1,173 @@
+#!/bin/bash
+
+#
+# defile the file where a torrent magnets output path is defined inside
+#
+TORRENT_MAGNETS_CAT_PATH="${HOME}/.torrent-magnets-path"
+
+#
+# define the default torrent magnets output path
+#
+TORRENT_MAGNETS_DEF_PATH="/tmp/torrent-magnets/"
+
+#
+# get the name of this script
+#
+function get_self_name() {
+  printf '%s' "$(basename "${BASH_SOURCE[0]}" ".bash")"
+}
+
+#
+# output line prefix info
+#
+function out_pref() {
+  local type="${1:-info}"
+
+  printf '(%s:%f.04) [%s]' "$(get_self_name)" "$(date +%s.%N)" "${type^^}"
+}
+
+#
+# output info message
+#
+function out_info() {
+  local message="${1}"
+  local replace=("${@:2}")
+
+
+  printf "%s ${message}\n" "$(out_pref 'info')" "${replace[@]}"
+}
+
+#
+# output critical message
+#
+function out_crit() {
+  local message="${1}"
+  local replace=("${@:2}")
+
+  printf "%s ${message}\n" "$(out_pref 'crit')" "${replace[@]}" 1>&2
+}
+
+#
+# output help/usage message
+#
+function out_help() {
+  printf 'Usage: ./%s MAGNET_LINK_1 [... MAGNET_LINK_N]\n' "$(get_self_name)" 1>&2
+}
+
+#
+# get the torrent file output root directory
+#
+function get_torrent_magnets_path() {
+  cat "${TORRENT_MAGNETS_CAT_PATH}" 2> /dev/null \
+    || (\
+      printf '%s' "${TORRENT_MAGNETS_DEF_PATH}" \
+        && out_crit \
+        'Failed to read output path config path from file "%s" (falling back to "%s" as output path)...' \
+        "${TORRENT_MAGNETS_CAT_PATH}" \
+        "${TORRENT_MAGNETS_DEF_PATH}" \
+      )
+}
+
+#
+# resolve the latest python binary path
+#
+function get_python_bin() {
+  local bin_path
+
+  if ! bin_path="$(which python3)"; then
+    if ! bin_path="$(which python)"; then
+      if ! bin_path="$(which python2)"; then
+        return 1
+      fi
+    fi
+  fi
+
+  printf '%s' "${bin_path}"
+}
+
+#
+# decode special url characters
+#
+function url_decode() {
+  local input_link="${1}"
+  local clean_link
+  local python_bin="$(get_python_bin)"
+
+  if -x "${python_bin}"; then
+    clean_link="$(
+      python \
+        -c "import sys, urllib as ul; print ul.unquote_plus(sys.argv[1])" \
+        "${url_raw}"
+    )"
+  fi
+
+  printf '%s' "${clean_link:-${input_link}}"
+}
+
+#
+# check runtime output root var
+#
+function check_output() {
+  local output_root="${1}"
+
+  if [[ -z "${output_root}"; then
+    out_error 'No output root configured for environment in '
+  fi
+
+  if [[ ! -d "${output_root}"; then
+
+  fi
+
+  if [[ ! -w "${output_root}" ]]; then
+    out_crit 'Output path "%s" is not writable!' "${output_root}"
+    out_help
+    exit 255
+  fi
+}
+
+
+function main() {
+  local output_root="$(get_torrent_magnets_path)"
+  local magnet_link="${1:-x}"
+  local magnet_file
+  local magnet_path
+  local raw_in_file
+
+  if [[ ! -w "${output_root}" ]]; then
+    out_crit 'Output path "%s" is not writable!' "${output_root}"
+    out_help
+    exit 255
+  fi
+
+  if [[ "${magnet_link}" == "x" ]]; then
+    out_crit 'You must specify a magnet link as the first argument!'
+    out_help
+    exit 255
+  fi
+
+  raw_in_file="$(grep -oE '=([^=&]+)' <<< "${magnet_link}" | head -n2 | tail -n1 | grep -oE '[A-Za-z].+$')"
+  magnet_file="$(sed -E 's/ /_/g' <<< "$(url_decode "${raw_in_file}")")"
+
+  if ! magnet_file="$(url_decode "${raw_in_file}")"; then
+    out_crit ''
+
+sed -E 's/ /_/g'
+  magnet_link
+  magnet_link="${magnet_link// /_}"
+  printf 'Cleaned magnet file characters: "%s" (from "%s")'
+
+  magnet_file="$(echo ${magnet_link} | grep -oE '=([^=&]+)' | head -n2 | tail -n 1 | grep -oE '[A-Za-z].+$').magnet"
+  magnet_path="${output_root}/${magnet_file}"
+
+  echo "${magnet_link}" > "${magnet_path}"
+
+  if [[ $? -eq 0 ]]; then
+    out_info 'Writing magnet: %s' "${magnet_path}"
+  else
+    out_crit 'Error writing magnet: %s' "${magnet_path}"
+  fi
+}
+
+for magnet_link in "$@"; do
+  main "${magnet_link}"
+done

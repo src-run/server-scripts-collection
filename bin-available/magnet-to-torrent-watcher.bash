@@ -1,11 +1,20 @@
 #!/bin/bash
 
+##
+## This file is part of the `robfrawley/twoface-scripts` project.
+##
+## (c) Rob Frawley 2nd <rmf@src.run>
+##
+## For the full copyright and license information, please view the LICENSE.md
+## file that was distributed with this source code.
+##
+
 #
 # configuration variables
 #
 WATCH_TICK=1
 WATCH_ECHO_TICK=20
-MAGNET_BIN="$(which magnet-to-torrent-writer)"
+MAGNET_BIN="/home/rto/scripts/bin-enabled/magnet-to-torrent-writer"
 MAGNET_LOG="/tmp/magnet-to-torrent-watcher_${RANDOM}.log"
 
 #
@@ -79,7 +88,7 @@ function run_resolve_file() {
   local magnet_link="${1}"
   local torrent_out="${2}"
 
-  ${MAGNET_BIN} -m "${magnet_link}" -o "${torrent_out}" &> ${MAGNET_LOG} &
+  ${MAGNET_BIN} -m "${magnet_link}" -o "${torrent_out}" &> "${MAGNET_LOG}" &
 
   echo "$!"
 }
@@ -96,6 +105,7 @@ function run_resolve() {
   cd "$(get_output_root)"
 
   out_resolve_info "${magnet_link}" "${torrent_out}" "${magnet_file}"
+  echo -e "\n[EXEC] ${MAGNET_BIN} -m '${magnet_link}' -o '${torrent_out}' &> '${MAGNET_LOG}' &\n" &> "${MAGNET_LOG}" &
   local pid=$(run_resolve_file "${magnet_link}" "${torrent_out}")
   out_resolve_done ${pid} "${magnet_file}"
 }
@@ -151,9 +161,32 @@ function do_pause_state() {
 }
 
 #
+# output runtime configuration
+#
+function out_configuration()
+{
+  printf '##\n'
+  printf '## CONFIGURATIOM\n'
+  printf '##\n\n'
+  printf 'WATCH_LOOP_TICK => "%d"\n' "${WATCH_TICK}"
+  printf 'WATCH_ECHO_TICK => "%d"\n' "${WATCH_ECHO_TICK}"
+  printf 'MAGNET_BIN_PATH => "%s"\n' "${MAGNET_BIN}"
+  printf 'MAGNET_LOG_FILE => "%s"\n' "${MAGNET_LOG}"
+  printf 'MAGNET_GET_PATH => "%s"\n' "$(get_magnet_root)"
+  printf 'OUTPUT_SET_PATH => "%s"\n\n' "$(get_output_root)"
+}
+
+#
 # the main function
 #
 function main() {
+  out_configuration
+
+  printf '##\n'
+  printf '## MAGNET WATCHER\n'
+  printf '##\n\n'
+
+
   while true; do
     if [[ $(get_magnet_count) -gt 0 ]]; then
       do_magnet_loop

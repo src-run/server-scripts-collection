@@ -35,7 +35,7 @@ function nuller()
 }
 
 printf 'a fun little error message!' @> >(nuller)
-printf 'a fun little error message!' 2>&1 1> >(nuller)
+printf 'a fun little error message!' 2>&1 >(nuller)
 printf 'a fun little error message!' 1>&2 2> >(nuller)
 exit
 function fmt_date()

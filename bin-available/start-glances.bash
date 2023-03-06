@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo glances 2> /dev/null
+/pool/scripts/bin-enabled/glances -D
